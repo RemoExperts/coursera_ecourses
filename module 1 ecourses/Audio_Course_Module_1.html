@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 1 — How Machines Learn From Sound</title>
+<style>
+:root{
+  --ink:#14262c; --ink2:#3d5a63; --mute:#7b8f96;
+  --accent:#1f4e5c; --accent2:#2e7d8f; --gold:#c08a2e;
+  --good:#1e7a5a; --bad:#a83a3a;
+  --bg:#f7f4ee; --card:#ffffff; --line:#e2ddd2; --soft:#eef3f4;
+  --r:14px; --sh:0 1px 3px rgba(20,38,44,.06), 0 6px 18px rgba(20,38,44,.05);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.6 ui-sans-serif,-apple-system,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:940px;margin:0 auto;padding:0 20px 100px}
+
+/* ---------- progress ---------- */
+#top{position:sticky;top:0;z-index:60;background:rgba(247,244,238,.92);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topin{max-width:940px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:14px}
+.topin b{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);white-space:nowrap}
+.bar{flex:1;height:8px;background:#e4ded3;border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;border-radius:99px;
+  background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.pct{font-variant-numeric:tabular-nums;font-weight:700;color:var(--accent);font-size:14px;min-width:42px;text-align:right}
+
+/* ---------- hero ---------- */
+header.hero{padding:56px 0 30px}
+.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:700}
+h1{font-size:clamp(30px,5vw,46px);line-height:1.1;margin:12px 0 14px;letter-spacing:-.02em;color:var(--accent)}
+.lede{font-size:19px;color:var(--ink2);max-width:62ch;margin:0}
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}
+.pill{font-size:13px;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:6px 13px;color:var(--ink2)}
+
+/* ---------- sections ---------- */
+section{margin:52px 0 0;scroll-margin-top:70px}
+.num{font-size:12px;font-weight:800;letter-spacing:.12em;color:var(--gold);text-transform:uppercase}
+h2{font-size:clamp(23px,3.4vw,31px);line-height:1.18;margin:8px 0 8px;letter-spacing:-.015em;color:var(--accent)}
+h3{font-size:17px;margin:26px 0 10px;color:var(--ink)}
+p{margin:0 0 14px;max-width:66ch}
+.big{font-size:19px;color:var(--ink2)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px;box-shadow:var(--sh)}
+.hint{font-size:13px;color:var(--mute);margin:0 0 12px;display:flex;align-items:center;gap:7px}
+.hint::before{content:"";width:6px;height:6px;border-radius:99px;background:var(--gold);flex:none}
+
+/* ---------- expander ---------- */
+details{border-top:1px dashed var(--line);margin-top:16px;padding-top:12px}
+details summary{cursor:pointer;font-size:14px;font-weight:600;color:var(--accent2);list-style:none;display:flex;gap:8px;align-items:center}
+details summary::-webkit-details-marker{display:none}
+details summary::before{content:"+";display:grid;place-items:center;width:19px;height:19px;border-radius:6px;
+  background:var(--soft);color:var(--accent);font-weight:800;font-size:14px;flex:none}
+details[open] summary::before{content:"–"}
+details .inner{padding:12px 0 2px;font-size:15px;color:var(--ink2)}
+details .inner p{margin-bottom:10px}
+
+/* ---------- buttons ---------- */
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+.btn{background:var(--accent);color:#fff;border-radius:10px;padding:10px 17px;font-weight:600;font-size:15px;
+  transition:transform .1s, background .15s}
+.btn:hover{background:#173d48}
+.btn:active{transform:translateY(1px)}
+.btn.ghost{background:var(--card);color:var(--accent);border:1px solid var(--line)}
+.btn.sm{padding:7px 13px;font-size:14px}
+
+/* ---------- keyword flip cards ---------- */
+.kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:11px;margin-top:6px}
+.flip{perspective:1100px;height:152px}
+.fin{position:relative;width:100%;height:100%;transition:transform .55s cubic-bezier(.3,.9,.3,1);transform-style:preserve-3d;cursor:pointer}
+.flip.on .fin{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;border-radius:12px;padding:15px;
+  border:1px solid var(--line);display:flex;overflow:hidden}
+.front{background:var(--card);align-items:center;justify-content:center;text-align:center;box-shadow:var(--sh)}
+.front span{font-weight:700;font-size:15.5px;color:var(--accent);line-height:1.3}
+.front::after{content:"tap";position:absolute;bottom:9px;right:11px;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--mute)}
+.back{background:var(--accent);color:#eaf2f4;transform:rotateY(180deg);align-items:flex-start;
+  font-size:12.4px;line-height:1.45;overflow-y:auto}
+.flip.seen .front{border-color:var(--accent2);background:#f4fafb}
+.kbar{display:flex;align-items:center;gap:11px;margin-top:14px;font-size:13.5px;color:var(--mute)}
+.kbar .mini{flex:1;max-width:210px;height:6px;background:#e4ded3;border-radius:99px;overflow:hidden}
+.kbar .mini i{display:block;height:100%;width:0;background:var(--accent2);transition:width .4s}
+
+/* ---------- hear vs measure ---------- */
+.toggle{display:inline-flex;background:var(--soft);border-radius:11px;padding:4px;gap:4px;border:1px solid var(--line)}
+.toggle button{padding:8px 15px;border-radius:8px;font-size:14.5px;font-weight:600;color:var(--ink2);transition:.15s}
+.toggle button.on{background:var(--accent);color:#fff}
+.stage{margin-top:16px;border-radius:12px;background:#0f2830;padding:18px;min-height:172px;
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+.numgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:5px;width:100%;
+  font:11.5px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:#7fd4c4}
+.numgrid span{text-align:right;opacity:.86}
+.capt{font-size:13.5px;color:var(--mute);margin-top:11px}
+
+/* ---------- sort drill (chips into buckets) ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:9px;margin:4px 0 18px}
+.chip{background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:9px 14px;font-size:14.5px;
+  transition:.15s;box-shadow:var(--sh)}
+.chip:hover{border-color:var(--accent2)}
+.chip.sel{border-color:var(--accent);background:#eef7f8;box-shadow:0 0 0 3px rgba(46,125,143,.16)}
+.chip.done{opacity:.32;pointer-events:none;text-decoration:line-through}
+.chip.ok{border-color:var(--good);background:#eef7f2}
+.chip.no{border-color:var(--bad);background:#fbf0ef;animation:shake .32s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.buckets{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.bucket{border:2px dashed var(--line);border-radius:12px;padding:15px;min-height:118px;background:#fbf9f5;transition:.15s}
+.bucket.live{border-color:var(--accent2);background:#f1f8f9;cursor:pointer}
+.bucket h4{margin:0 0 4px;font-size:15px;color:var(--accent)}
+.bucket .sub{font-size:12.5px;color:var(--mute);margin-bottom:9px}
+.bucket ul{margin:0;padding-left:17px;font-size:13.5px;color:var(--ink2)}
+.bucket li{margin-bottom:3px}
+
+/* ---------- pipeline stepper ---------- */
+.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:6px 0 16px}
+.step{position:relative;background:var(--card);border:1.5px solid var(--line);border-radius:11px;padding:13px 9px;
+  text-align:center;transition:.16s;box-shadow:var(--sh)}
+.step:hover{transform:translateY(-2px);border-color:var(--accent2)}
+.step.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.step .n{font-size:11px;font-weight:800;letter-spacing:.08em;opacity:.6}
+.step .t{font-size:13.5px;font-weight:600;margin-top:3px;line-height:1.25}
+.step .you{position:absolute;top:-8px;right:-4px;background:var(--gold);color:#fff;font-size:9.5px;
+  font-weight:800;letter-spacing:.05em;padding:2px 6px;border-radius:99px;text-transform:uppercase}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;box-shadow:var(--sh)}
+.panel h4{margin:0 0 8px;color:var(--accent);font-size:18px}
+.panel .role{display:inline-block;font-size:12px;background:var(--soft);border-radius:99px;padding:4px 11px;
+  color:var(--accent2);font-weight:600;margin-bottom:11px}
+
+/* ---------- layer waveform ---------- */
+.layerwrap{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;box-shadow:var(--sh)}
+.ltoggles{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:15px}
+.lt{border:1.5px solid var(--line);border-radius:99px;padding:6px 13px;font-size:13.5px;font-weight:600;
+  color:var(--mute);background:#fbf9f5;transition:.15s;display:flex;align-items:center;gap:7px}
+.lt i{width:9px;height:9px;border-radius:99px;background:#cfc9bd;transition:.15s}
+.lt.on{color:#fff}
+.readout{margin-top:13px;font:13px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink2);
+  background:#fbf9f5;border:1px solid var(--line);border-radius:9px;padding:13px;min-height:56px}
+.readout .k{color:var(--mute)}
+.readout .empty{color:var(--mute);font-style:italic;font-family:inherit;font-size:13.5px}
+
+/* ---------- two annotators ---------- */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.tr{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:var(--sh)}
+.tr .who{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);font-weight:700;margin-bottom:9px}
+.tr .txt{font:15px/1.9 ui-monospace,SFMono-Regular,Menlo,monospace}
+.tok{border-radius:5px;padding:1px 3px;cursor:pointer;transition:.15s}
+.tok.diff:hover{background:#fdf3dd}
+.tok.found{background:#fdecc8;box-shadow:inset 0 -2px 0 var(--gold);font-weight:700}
+.verdict{margin-top:15px;border-radius:11px;padding:15px;font-size:15px;display:none}
+.verdict.show{display:block}
+.verdict.win{background:#eef7f2;border:1px solid #b8dcc9;color:#155c43}
+.verdict.mid{background:#fdf6e8;border:1px solid #e8d6a8;color:#7a5a15}
+
+/* ---------- bias simulator ---------- */
+.sim{display:grid;grid-template-columns:1fr 1.15fr;gap:20px;align-items:start}
+.slider{margin-bottom:15px}
+.slider label{display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px;color:var(--ink2)}
+.slider label b{font-variant-numeric:tabular-nums;color:var(--accent)}
+input[type=range]{width:100%;-webkit-appearance:none;height:6px;border-radius:99px;background:#e4ded3;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:19px;height:19px;border-radius:99px;
+  background:var(--accent);cursor:pointer;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+input[type=range]::-moz-range-thumb{width:19px;height:19px;border-radius:99px;background:var(--accent);
+  cursor:pointer;border:3px solid #fff}
+.gapnote{font-size:14px;border-radius:10px;padding:12px 14px;margin-top:4px;transition:.3s}
+.disclaim{font-size:12px;color:var(--mute);font-style:italic;margin-top:12px}
+
+/* ---------- quiz ---------- */
+.q{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:20px;margin-bottom:13px;box-shadow:var(--sh)}
+.qh{display:flex;gap:11px;align-items:baseline;margin-bottom:13px}
+.qn{font-size:12px;font-weight:800;color:#fff;background:var(--accent);border-radius:7px;padding:3px 8px;flex:none}
+.qt{font-size:16.5px;font-weight:600;line-height:1.42}
+.opt{display:block;width:100%;text-align:left;border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;
+  margin-bottom:8px;font-size:15px;background:#fbf9f5;transition:.14s;display:flex;gap:11px;align-items:flex-start}
+.opt:hover:not(.locked){border-color:var(--accent2);background:#f2f9fa}
+.opt .let{font-weight:800;color:var(--accent2);flex:none}
+.opt.correct{border-color:var(--good);background:#eef7f2}
+.opt.correct .let{color:var(--good)}
+.opt.wrong{border-color:var(--bad);background:#fbf0ef}
+.opt.wrong .let{color:var(--bad)}
+.opt.locked{cursor:default}
+.fb{margin-top:10px;font-size:14.5px;border-radius:9px;padding:12px 14px;display:none;line-height:1.55}
+.fb.show{display:block}
+.fb.y{background:#eef7f2;border-left:3px solid var(--good);color:#155c43}
+.fb.n{background:#fbf0ef;border-left:3px solid var(--bad);color:#7d2b2b}
+.scen textarea{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px;font:inherit;font-size:15px;
+  resize:vertical;min-height:88px;background:#fbf9f5}
+.scen textarea:focus{outline:none;border-color:var(--accent2)}
+.model{margin-top:12px;background:#f4fafb;border:1px solid #cfe4e8;border-radius:10px;padding:15px;font-size:14.5px;
+  display:none;line-height:1.6}
+.model.show{display:block}
+.model h5{margin:0 0 7px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent2)}
+.selfscore{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.selfscore span{font-size:13.5px;color:var(--mute);margin-right:3px}
+.ss{border:1.5px solid var(--line);border-radius:9px;padding:7px 13px;font-size:14px;font-weight:600;background:#fff}
+.ss:hover{border-color:var(--accent2)}
+.ss.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ---------- score ---------- */
+.final{background:linear-gradient(150deg,#1f4e5c,#153a45);color:#fff;border-radius:16px;padding:30px;text-align:center}
+.final .sc{font-size:52px;font-weight:800;letter-spacing:-.03em;line-height:1}
+.final .of{font-size:17px;opacity:.72;margin-top:5px}
+.final .msg{margin-top:15px;font-size:16px;opacity:.92;max-width:48ch;margin-left:auto;margin-right:auto}
+.ring{display:flex;gap:5px;justify-content:center;margin-top:20px;flex-wrap:wrap}
+.dot{width:11px;height:11px;border-radius:99px;background:rgba(255,255,255,.22)}
+.dot.f{background:#7fd4c4}
+
+/* ---------- misc ---------- */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:17px;box-shadow:var(--sh)}
+.stat .n{font-size:27px;font-weight:800;color:var(--accent);letter-spacing:-.02em;line-height:1.1}
+.stat .l{font-size:13.5px;color:var(--ink2);margin-top:5px}
+.rule{height:1px;background:var(--line);margin:44px 0 0}
+.note{background:#fdf9ef;border:1px solid #ecdfc0;border-left:3px solid var(--gold);border-radius:10px;
+  padding:15px 17px;font-size:15px;color:#6b5320}
+.note b{color:#4d3b12}
+/* ---------- reviewer intro ---------- */
+.intro{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--gold);
+  border-radius:var(--r);padding:22px;box-shadow:var(--sh);margin-top:26px}
+.intro h3{margin:0 0 4px;font-size:18px;color:var(--accent)}
+.intro .sub{font-size:13px;color:var(--mute);margin-bottom:14px}
+.intro ol{margin:0;padding-left:20px;font-size:15px;color:var(--ink2)}
+.intro ol li{margin-bottom:7px}
+.intro .ask{margin-top:15px;background:#fdf9ef;border:1px solid #ecdfc0;border-radius:10px;padding:13px 15px;font-size:14.5px;color:#6b5320}
+.intro .ask b{color:#4d3b12}
+.closex{float:right;font-size:13px;color:var(--mute);border:1px solid var(--line);border-radius:8px;padding:4px 10px}
+.closex:hover{border-color:var(--accent2);color:var(--accent)}
+
+/* ---------- results export ---------- */
+.export{margin-top:22px;border-top:1px solid rgba(255,255,255,.18);padding-top:20px}
+.export input{width:100%;max-width:280px;border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.1);
+  color:#fff;border-radius:9px;padding:10px 13px;font:inherit;font-size:15px;text-align:center}
+.export input::placeholder{color:rgba(255,255,255,.55)}
+.export input:focus{outline:none;border-color:#7fd4c4}
+.exbtns{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.exbtns .btn{background:#7fd4c4;color:#0f2830;font-weight:700}
+.exbtns .btn:hover{background:#6ac4b3}
+.exbtns .btn.o{background:transparent;color:#cfe8e4;border:1px solid rgba(255,255,255,.3)}
+.exbtns .btn.o:hover{background:rgba(255,255,255,.09)}
+.saved{font-size:13.5px;color:#7fd4c4;margin-top:11px;height:18px}
+
+@media(max-width:720px){
+  .buckets,.two,.sim,.grid2{grid-template-columns:1fr}
+  .steps{grid-template-columns:repeat(2,1fr)}
+  .flip{height:168px}
+}
+@media print{
+  #top,.intro,.exbtns,.toggle,.btn{display:none!important}
+  body{background:#fff}
+  section{page-break-inside:avoid}
+  .final{background:#1f4e5c!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .card,.q,.panel,.stat,.tr,.layerwrap{box-shadow:none}
+}
+</style>
+</head>
+<body>
+
+<div id="top"><div class="topin">
+  <b>Module 1</b>
+  <div class="bar"><i id="pbar"></i></div>
+  <div class="pct" id="ppct">0%</div>
+</div></div>
+
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">Audio AI Training · Interactive sample</div>
+  <h1>How Machines Learn From Sound</h1>
+  <p class="lede">A model never hears anything. It measures numbers. Everything else — the words, the speakers, the doorbell — is put there by a person. That person is you.</p>
+  <div class="meta">
+    <span class="pill">⏱ About 20 minutes</span>
+    <span class="pill">🎧 5 interactive drills</span>
+    <span class="pill">✓ 6 knowledge checks</span>
+  </div>
+
+  <div class="intro" id="intro">
+    <button class="closex" onclick="document.getElementById('intro').remove()">hide</button>
+    <h3>Before you start — read this</h3>
+    <div class="sub">For the Abaka AI team · style sample, not the finished course</div>
+    <ol>
+      <li><b>This is 1 of 7 modules.</b> It's built to show the format. The other six exist as written content and will get the same treatment once we agree this works.</li>
+      <li><b>Do it properly, don't skim.</b> Flip the cards, drag the chips, move the sliders. The point is whether the interactions teach better than paragraphs did.</li>
+      <li><b>It takes about 20 minutes</b> and works offline. Nothing is sent anywhere — your answers stay on your machine.</li>
+      <li><b>At the end,</b> download your results and send them back with your comments.</li>
+    </ol>
+    <div class="ask">
+      <b>What we need from you:</b> Is the pacing right? Are the quizzes too easy or too hard? Is anything now <em>unclear</em> because we cut the text? And would a new trainer actually finish this?
+    </div>
+  </div>
+</header>
+
+<!-- ============ KEYWORDS ============ -->
+<section id="kw">
+  <div class="num">1.0 — Warm up</div>
+  <h2>15 words you'll hear in every brief</h2>
+  <p class="hint">Tap each card to flip it. Flip all 15 to unlock the module.</p>
+  <div class="kgrid" id="kgrid"></div>
+  <div class="kbar">
+    <div class="mini"><i id="kmini"></i></div>
+    <span id="kcount">0 of 15 flipped</span>
+  </div>
+</section>
+
+<div class="rule"></div>
+
+<!-- ============ 1.1 ============ -->
+<section id="s1">
+  <div class="num">1.1</div>
+  <h2>A model does not hear. It measures.</h2>
+  <p class="big">Flip between what <em>you</em> get and what the <em>model</em> gets from the same half-second of speech.</p>
+
+  <div class="card">
+    <div class="toggle">
+      <button id="tgA" class="on" onclick="setView('wave')">🎧 What you hear</button>
+      <button id="tgB" onclick="setView('nums')">🖥 What the model gets</button>
+    </div>
+    <div class="stage" id="stage"></div>
+    <div class="capt" id="cap">A waveform. You hear a voice, a room, a tone. You know instantly that it's speech.</div>
+
+    <details>
+      <summary>Why this matters for your job</summary>
+      <div class="inner">
+        <p>Nothing in that list of numbers says "this is a word", "this is a second speaker", or "this is a doorbell". Every one of those facts is added by a person.</p>
+        <p>The closest comparison is image labelling. A vision annotator draws a box around an object in a grid of pixels. You mark <b>where in time</b> a sound starts and stops, on a one-dimensional timeline. What you're paid for is precision about time and consistency about naming — not listening ability.</p>
+      </div>
+    </details>
+  </div>
+
+  <h3>Drill 1 · What can annotation actually fix?</h3>
+  <p class="hint">Pick a chip, then click a box. Bad audio cannot be rescued by good labelling.</p>
+  <div class="chips" id="fixChips"></div>
+  <div class="buckets">
+    <div class="bucket" id="bFix" onclick="drop1('fix')">
+      <h4>🔧 Annotation can fix this</h4>
+      <div class="sub">A label problem — review corrects it</div>
+      <ul id="lFix"></ul>
+    </div>
+    <div class="bucket" id="bGone" onclick="drop1('gone')">
+      <h4>🚫 Gone forever</h4>
+      <div class="sub">The signal itself is damaged</div>
+      <ul id="lGone"></ul>
+    </div>
+  </div>
+  <div class="verdict" id="v1"></div>
+</section>
+
+<div class="rule"></div>
+
+<!-- ============ 1.2 ============ -->
+<section id="s2">
+  <div class="num">1.2</div>
+  <h2>Five stages. You are hired for three of them.</h2>
+  <p class="hint">Click any stage to see what happens there — and what "good work" means.</p>
+  <div class="steps" id="steps"></div>
+  <div class="panel" id="stepPanel"></div>
+
+  <div class="grid2" style="margin-top:16px">
+    <div class="stat"><div class="n">Stages 3–5</div><div class="l">Where AI trainers are hired. Stage 3 is labelling, stage 4 is checking, stage 5 is judging.</div></div>
+    <div class="stat"><div class="n">Stage 5</div><div class="l">Judging model output — the fastest-growing work, and the part that pays for judgement rather than typing speed.</div></div>
+  </div>
+
+  <h3>Drill 2 · Which stage does this task belong to?</h3>
+  <p class="hint">Pick a task, then click the stage it belongs to.</p>
+  <div class="chips" id="taskChips"></div>
+  <div class="steps" id="dropSteps"></div>
+  <div class="verdict" id="v2"></div>
+</section>
+
+<div class="rule"></div>
+
+<!-- ============ 1.3 ============ -->
+<section id="s3">
+  <div class="num">1.3</div>
+  <h2>One file. Seven layers stacked on it.</h2>
+  <p class="big">Annotation output is never one text file. Switch the layers on and watch them stack onto the same three seconds of audio.</p>
+
+  <div class="layerwrap">
+    <div class="ltoggles" id="ltog"></div>
+    <svg id="lsvg" viewBox="0 0 880 250" style="width:100%;height:auto;display:block"></svg>
+    <div class="readout" id="lread"><span class="empty">No layers on. Right now this file is worth nothing to a model — switch something on.</span></div>
+    <details>
+      <summary>So what's the actual product?</summary>
+      <div class="inner">
+        <p>Not any single layer. The value is whether those layers mean <b>the same thing in file 1 and in file 10,000</b>, when dozens of different people produced them.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<div class="rule"></div>
+
+<!-- ============ 1.4 ============ -->
+<section id="s4">
+  <div class="num">1.4</div>
+  <h2>The guideline is the product.</h2>
+  <p class="big">Two careful annotators. Same four seconds of audio. Three quiet disagreements.</p>
+  <p class="hint">Drill 3 · Click the three places where they differ.</p>
+
+  <div class="two">
+    <div class="tr"><div class="who">Annotator A</div><div class="txt" id="trA"></div></div>
+    <div class="tr"><div class="who">Annotator B</div><div class="txt" id="trB"></div></div>
+  </div>
+  <div class="verdict" id="v3"></div>
+
+  <div class="note" style="margin-top:16px">
+    <b>The rule:</b> if two careful people disagree, suspect the guideline before you suspect the people. Low agreement is an <b>ambiguity signal</b>, not a discipline problem.
+  </div>
+
+  <details class="card" style="margin-top:14px;border-top:1px solid var(--line)">
+    <summary>What do I do when the guideline doesn't cover it?</summary>
+    <div class="inner">
+      <p><b>Do:</b> label it the closest defensible way → flag it → raise it. The rule then gets written once, for everybody.</p>
+      <p><b>Don't:</b> invent a private convention. Once files are merged, a private convention is indistinguishable from an error — and it teaches the model that one sound maps to two answers, which is worse than a missing label.</p>
+    </div>
+  </details>
+</section>
+
+<div class="rule"></div>
+
+<!-- ============ 1.5 ============ -->
+<section id="s5">
+  <div class="num">1.5</div>
+  <h2>Bias gets in through the data.</h2>
+  <p class="big">Drag the sliders. Watch who the system stops working for.</p>
+
+  <div class="card">
+    <div class="sim">
+      <div>
+        <div class="slider"><label>Young adults, prestige accent <b id="o1">70%</b></label>
+          <input type="range" id="r1" min="10" max="85" value="70" oninput="sim()"></div>
+        <div class="slider"><label>Regional & second-language accents <b id="o2">15%</b></label>
+          <input type="range" id="r2" min="5" max="60" value="15" oninput="sim()"></div>
+        <div class="slider"><label>Children & older speakers <b id="o3">8%</b></label>
+          <input type="range" id="r3" min="2" max="50" value="8" oninput="sim()"></div>
+        <div class="slider"><label>Noisy, real-world conditions <b id="o4">7%</b></label>
+          <input type="range" id="r4" min="2" max="50" value="7" oninput="sim()"></div>
+        <button class="btn ghost sm" onclick="preset()">↺ Reset to a typical dataset</button>
+      </div>
+      <div>
+        <svg id="bsvg" viewBox="0 0 420 250" style="width:100%;height:auto;display:block"></svg>
+        <div class="gapnote" id="gapnote"></div>
+      </div>
+    </div>
+    <div class="disclaim">Illustrative model, not measured results — it shows the direction of the effect, not real accuracy figures for any system.</div>
+
+    <details>
+      <summary>Two things this means for you personally</summary>
+      <div class="inner">
+        <p><b>1. Metadata isn't paperwork.</b> The age band, accent, device and condition you record are what make this gap measurable at all. Audits of widely used audio datasets have found weak documentation of demographics, provenance and consent — which is exactly why these gaps go undetected.</p>
+        <p><b>2. Don't polish your accent.</b> When a brief asks for a specific dialect or register, that's a technical requirement. Over-formalising your speech removes the exact variation the dataset was commissioned to capture.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<div class="rule"></div>
+
+<!-- ============ QUIZ ============ -->
+<section id="quiz">
+  <div class="num">1.Q</div>
+  <h2>Knowledge check</h2>
+  <p class="hint">Four quick ones, then two judgement calls. Instant feedback — wrong answers explain themselves.</p>
+  <div id="qbox"></div>
+</section>
+
+<section id="scorewrap" style="display:none">
+  <div class="final">
+    <div class="sc"><span id="sc">0</span></div>
+    <div class="of">out of 10 points</div>
+    <div class="ring" id="ring"></div>
+    <div class="msg" id="msg"></div>
+    <div class="export">
+      <input id="who" type="text" placeholder="Your name (optional)" autocomplete="name">
+      <div class="exbtns">
+        <button class="btn" onclick="saveResults()">⭳ Download my results</button>
+        <button class="btn o" onclick="window.print()">🖨 Save as PDF</button>
+        <button class="btn o" onclick="location.reload()">↺ Retake</button>
+      </div>
+      <div class="saved" id="saved"></div>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<script>
+/* =================== ELEMENT REFS ===================
+   Explicit lookups: SVG elements never get implicit window globals,
+   and relying on them for HTML elements is fragile. */
+const $=id=>document.getElementById(id);
+const pbar=$('pbar'), ppct=$('ppct'),
+      kgrid=$('kgrid'), kcount=$('kcount'), kmini=$('kmini'),
+      tgA=$('tgA'), tgB=$('tgB'), stage=$('stage'), cap=$('cap'),
+      fixChips=$('fixChips'), lFix=$('lFix'), lGone=$('lGone'),
+      bFix=$('bFix'), bGone=$('bGone'), v1=$('v1'),
+      steps=$('steps'), stepPanel=$('stepPanel'),
+      taskChips=$('taskChips'), dropSteps=$('dropSteps'), v2=$('v2'),
+      ltog=$('ltog'), lsvg=$('lsvg'), lread=$('lread'),
+      trA=$('trA'), trB=$('trB'), v3=$('v3'),
+      r1=$('r1'), r2=$('r2'), r3=$('r3'), r4=$('r4'),
+      o1=$('o1'), o2=$('o2'), o3=$('o3'), o4=$('o4'),
+      bsvg=$('bsvg'), gapnote=$('gapnote'),
+      qbox=$('qbox'), scorewrap=$('scorewrap'),
+      sc=$('sc'), ring=$('ring'), msg=$('msg');
+
+/* =================== STATE =================== */
+const S={kw:0,d1:false,d2:false,d3:false,layers:false,sim:false,
+         mcq:[null,null,null,null],pick:[null,null,null,null],scen:[null,null],started:new Date()};
+const TOTAL_TASKS=12; // keywords + 5 drills/sims + 4 MCQ + 2 scenarios
+function prog(){
+  let done=0;
+  if(S.kw>=15)done++;
+  ['d1','d2','d3','layers','sim'].forEach(k=>{if(S[k])done++});
+  S.mcq.forEach(v=>{if(v!==null)done++});
+  S.scen.forEach(v=>{if(v!==null)done++});
+  const p=Math.round(done/TOTAL_TASKS*100);
+  pbar.style.width=p+'%';ppct.textContent=p+'%';
+  if(S.mcq.every(v=>v!==null)&&S.scen.every(v=>v!==null))showScore();
+}
+
+/* =================== KEYWORDS =================== */
+const KW=[
+["Waveform","The raw pressure signal in an audio file. Carries no words, speakers or events until a person labels them."],
+["Sample rate","How many times a second the sound is measured. 8kHz = phone. 16kHz = speech models. 44.1kHz = music. You can go down, never back up."],
+["Bit depth","How finely each measurement is taken. Too low adds permanent background hiss."],
+["Spectrogram","A picture of frequency over time. What most speech models actually learn from — and what you read to find sound boundaries."],
+["Channel","How many separate streams are in the file. Two speakers on two channels are far easier to label than two mixed into one."],
+["Utterance","One continuous stretch of speech from one speaker. The standard working unit."],
+["Segment","Any slice of audio with a start and end time — speech, sound, or silence."],
+["Ground truth","The label treated as correct. It's a human decision, not a fact. That's why the guideline matters."],
+["Evaluation set","Data used to score the model, not train it. Labelled to the strictest standard, because an error here misreports how good the model is."],
+["Annotation guideline","The rulebook: every label, every edge case, every tag. This is the real product of a well-run project."],
+["Metadata","Facts about the file rather than a moment in it: language, dialect, age band, device, room, consent status."],
+["Lossy compression","MP3 and similar throw away detail to save space. The damage cannot be undone."],
+["SNR","Signal-to-noise ratio — how loud the target is against the background. Noisy audio is valid data, but it must be labelled as noisy."],
+["Pre-annotation","A model writes the first draft, you correct it. Faster — but it introduces anchoring bias."],
+["Anchoring bias","Accepting a machine draft because it's already on screen, not because it's right. The main quality risk of pre-annotation."]
+];
+KW.forEach((k,i)=>{
+  const d=document.createElement('div');d.className='flip';
+  d.innerHTML=`<div class="fin"><div class="face front"><span>${k[0]}</span></div><div class="face back">${k[1]}</div></div>`;
+  d.onclick=()=>{
+    d.classList.toggle('on');
+    if(!d.classList.contains('seen')){d.classList.add('seen');S.kw++;
+      kcount.textContent=S.kw+' of 15 flipped';kmini.style.width=(S.kw/15*100)+'%';
+      if(S.kw===15)kcount.textContent='✓ All 15 — you know the vocabulary';prog();}
+  };
+  kgrid.appendChild(d);
+});
+
+/* =================== 1.1 HEAR vs MEASURE =================== */
+function wavePath(w,h,n,seed){
+  let s=seed,pts=[];
+  const rnd=()=>{s=(s*9301+49297)%233280;return s/233280};
+  for(let i=0;i<n;i++){
+    const t=i/n;
+    const env=Math.sin(t*Math.PI)*(.55+.45*Math.sin(t*11));
+    pts.push(env*(.35+.65*rnd()));
+  }
+  return pts;
+}
+const WP=wavePath(0,0,150,7);
+function drawWave(){
+  const bars=WP.map((v,i)=>{
+    const x=i*5.6+4,hh=Math.max(2,v*72);
+    return `<rect x="${x.toFixed(1)}" y="${(80-hh).toFixed(1)}" width="3.1" height="${(hh*2).toFixed(1)}" rx="1.5" fill="#7fd4c4" opacity="${(.45+v*.55).toFixed(2)}"/>`;
+  }).join('');
+  return `<svg viewBox="0 0 850 160" style="width:100%"><g transform="translate(0,0)">${bars}</g></svg>`;
+}
+function drawNums(){
+  let h='';
+  for(let i=0;i<96;i++){
+    const v=Math.round((WP[i]*2-1)*13800);
+    h+=`<span>${v}</span>`;
+  }
+  return `<div class="numgrid">${h}</div>`;
+}
+function setView(m){
+  tgA.classList.toggle('on',m==='wave');tgB.classList.toggle('on',m==='nums');
+  stage.innerHTML=m==='wave'?drawWave():drawNums();
+  cap.textContent=m==='wave'
+    ?"A waveform. You hear a voice, a room, a tone. You know instantly that it's speech."
+    :"The same half-second. 96 of roughly 8,000 numbers. No words, no speaker, no doorbell — nothing until you add it.";
+}
+setView('wave');
+
+/* =================== DRILL 1 =================== */
+const FIX=[
+ ["Inconsistent label taxonomy","fix"],["Missing speaker ID","fix"],["Clipping (recorded too loud)","gone"],
+ ["Timestamp drifted 400ms","fix"],["MP3 compression artefacts","gone"],["Wrong intent label","fix"],
+ ["Speaker 3m from the mic","gone"]
+];
+let sel1=null,n1=0;
+FIX.forEach((f,i)=>{
+  const b=document.createElement('button');b.className='chip';b.textContent=f[0];b.dataset.i=i;
+  b.onclick=e=>{e.stopPropagation();document.querySelectorAll('#fixChips .chip').forEach(c=>c.classList.remove('sel'));
+    b.classList.add('sel');sel1=i;bFix.classList.add('live');bGone.classList.add('live')};
+  fixChips.appendChild(b);
+});
+function drop1(target){
+  if(sel1===null)return;
+  const chip=document.querySelector(`#fixChips .chip[data-i="${sel1}"]`);
+  const right=FIX[sel1][1]===target;
+  if(right){
+    const li=document.createElement('li');li.textContent=FIX[sel1][0];
+    (target==='fix'?lFix:lGone).appendChild(li);
+    chip.classList.add('done');n1++;
+    if(n1===FIX.length){S.d1=true;
+      v1.className='verdict show win';
+      v1.innerHTML='<b>✓ That\'s the line.</b> Labels are editable; the signal is not. Spotting unusable audio and flagging it <em>is</em> the job — not a failure to do the job.';
+      prog();}
+  }else{
+    chip.classList.add('no');setTimeout(()=>chip.classList.remove('no'),340);
+  }
+  sel1=null;bFix.classList.remove('live');bGone.classList.remove('live');
+  document.querySelectorAll('#fixChips .chip').forEach(c=>c.classList.remove('sel'));
+}
+
+/* =================== 1.2 PIPELINE =================== */
+const ST=[
+ ["Collection","Sourcing audio that looks like real use — many rooms, devices, accents, ages.",
+  "Recruiter / field team","Good work = <b>coverage</b>. A model trained only on quiet offices fails on a street corner."],
+ ["Pre-processing","Standardising before humans touch it: noise filtering, volume levelling, cutting long files into 5–15 second clips.",
+  "Engineer","Good work = <b>clean input</b>. Corrupted files removed, nothing useful filtered away with the noise."],
+ ["Annotation","Adding the layers: transcript, timestamps, speakers, events, intent, emotion. Often correcting a machine draft.",
+  "★ You","Good work = <b>consistency with the guideline</b>, not personal best judgement."],
+ ["Quality control","Second-pass review, agreement checks, stratified spot checks, feedback to annotators.",
+  "★ You (senior)","Good work = <b>finding the pattern</b>, not just the error. One fixed rule beats forty fixed files."],
+ ["Train & evaluate","The model learns, then is scored against a held-out evaluation set — itself annotated, to the strictest tier.",
+  "★ You (evaluator)","Good work = <b>calibrated judgement</b>. This is the fastest-growing category and it pays for judgement, not typing speed."]
+];
+ST.forEach((s,i)=>{
+  const b=document.createElement('button');b.className='step'+(i===2?' on':'');
+  b.innerHTML=`${i>=2?'<span class="you">you</span>':''}<div class="n">STAGE ${i+1}</div><div class="t">${s[0]}</div>`;
+  b.onclick=()=>{document.querySelectorAll('#steps .step').forEach(x=>x.classList.remove('on'));b.classList.add('on');showStep(i)};
+  steps.appendChild(b);
+});
+function showStep(i){
+  const s=ST[i];
+  stepPanel.innerHTML=`<h4>Stage ${i+1} · ${s[0]}</h4><div class="role">${s[2]}</div><p>${s[1]}</p><p style="margin:0">${s[3]}</p>`;
+}
+showStep(2);
+
+/* =================== DRILL 2 =================== */
+const TASKS=[
+ ["Split a 2-hour podcast into 10-second clips",1],
+ ["Recruit speakers with regional accents",0],
+ ["Mark who spoke when",2],
+ ["Check 10% of delivered files against the spec",3],
+ ["Rate which of two AI transcripts is better",4]
+];
+let sel2=null,n2=0;
+TASKS.forEach((t,i)=>{
+  const b=document.createElement('button');b.className='chip';b.textContent=t[0];b.dataset.i=i;
+  b.onclick=()=>{document.querySelectorAll('#taskChips .chip').forEach(c=>c.classList.remove('sel'));
+    b.classList.add('sel');sel2=i;document.querySelectorAll('#dropSteps .step').forEach(x=>x.classList.add('live'))};
+  taskChips.appendChild(b);
+});
+ST.forEach((s,i)=>{
+  const b=document.createElement('button');b.className='step';
+  b.innerHTML=`<div class="n">STAGE ${i+1}</div><div class="t">${s[0]}</div>`;
+  b.onclick=()=>drop2(i,b);
+  dropSteps.appendChild(b);
+});
+function drop2(stage,el){
+  if(sel2===null)return;
+  const chip=document.querySelector(`#taskChips .chip[data-i="${sel2}"]`);
+  if(TASKS[sel2][1]===stage){
+    chip.classList.add('done');n2++;
+    el.style.borderColor='#1e7a5a';el.style.background='#eef7f2';
+    setTimeout(()=>{el.style.borderColor='';el.style.background=''},600);
+    if(n2===TASKS.length){S.d2=true;v2.className='verdict show win';
+      v2.innerHTML='<b>✓ All five placed.</b> Knowing the stage tells you what "good" means. The same care applied at the wrong stage is wasted effort.';prog();}
+  }else{chip.classList.add('no');setTimeout(()=>chip.classList.remove('no'),340)}
+  sel2=null;document.querySelectorAll('#dropSteps .step').forEach(x=>x.classList.remove('live'));
+  document.querySelectorAll('#taskChips .chip').forEach(c=>c.classList.remove('sel'));
+}
+
+/* =================== 1.3 LAYERS =================== */
+const LAYERS=[
+ {id:'tx',name:'Transcript',col:'#2e7d8f',read:'"Dim the living room lights after the movie ends."'},
+ {id:'tm',name:'Time boundaries',col:'#c08a2e',read:'00:00:05.120 → 00:00:08.340'},
+ {id:'sp',name:'Speaker',col:'#7a4fa3',read:'Speaker 1 · adult · male'},
+ {id:'in',name:'Intent + slot',col:'#1e7a5a',read:'control_device → lighting | slot: location = living room'},
+ {id:'ev',name:'Non-speech events',col:'#a83a3a',read:'television audio · 00:00:04.0 → 00:00:09.0'},
+ {id:'em',name:'Emotion / tone',col:'#c2568a',read:'neutral'},
+ {id:'md',name:'Metadata',col:'#5a6b75',read:'en-GB · far-field smart speaker · 16 kHz · consented'}
+];
+const on={};
+LAYERS.forEach(l=>{
+  const b=document.createElement('button');b.className='lt';b.id='lt'+l.id;
+  b.innerHTML=`<i></i>${l.name}`;
+  b.onclick=()=>{on[l.id]=!on[l.id];
+    b.classList.toggle('on',on[l.id]);
+    b.style.background=on[l.id]?l.col:'#fbf9f5';
+    b.style.borderColor=on[l.id]?l.col:'';
+    b.querySelector('i').style.background=on[l.id]?'#fff':'';
+    drawLayers();
+    if(Object.values(on).filter(Boolean).length===7&&!S.layers){S.layers=true;prog()}
+  };
+  ltog.appendChild(b);
+});
+function drawLayers(){
+  const W=880;
+  let g='';
+  const bars=WP.slice(0,140).map((v,i)=>{
+    const x=i*6.1+8,hh=Math.max(2,v*30);
+    return `<rect x="${x.toFixed(1)}" y="${(42-hh).toFixed(1)}" width="3.4" height="${(hh*2).toFixed(1)}" rx="1.7" fill="#c9d6da"/>`;
+  }).join('');
+  g+=`<g>${bars}</g>`;
+  g+=`<line x1="8" y1="92" x2="${W-20}" y2="92" stroke="#e2ddd2"/>`;
+  for(let i=0;i<=6;i++){const x=8+i*((W-28)/6);
+    g+=`<line x1="${x}" y1="86" x2="${x}" y2="98" stroke="#cfc9bd"/>`;
+    g+=`<text x="${x}" y="112" font-size="10" fill="#9aa7ac" text-anchor="middle" font-family="ui-monospace,monospace">0${5+i*0.5}s</text>`;}
+  let y=128;
+  LAYERS.forEach(l=>{
+    if(!on[l.id])return;
+    const x1=l.id==='ev'?8:l.id==='md'?8:60, x2=l.id==='ev'?W-20:l.id==='md'?W-20:W-90;
+    g+=`<rect x="${x1}" y="${y}" width="${x2-x1}" height="17" rx="5" fill="${l.col}" opacity=".2"/>`;
+    g+=`<rect x="${x1}" y="${y}" width="4" height="17" rx="2" fill="${l.col}"/>`;
+    g+=`<text x="${x1+12}" y="${y+12.5}" font-size="11.5" fill="${l.col}" font-weight="600">${l.name}</text>`;
+    y+=22;
+  });
+  lsvg.setAttribute('viewBox',`0 0 ${W} ${Math.max(150,y+10)}`);
+  lsvg.innerHTML=g;
+  const act=LAYERS.filter(l=>on[l.id]);
+  lread.innerHTML=act.length===0
+    ?'<span class="empty">No layers on. Right now this file is worth nothing to a model — switch something on.</span>'
+    :act.map(l=>`<div><span class="k">${l.name.padEnd(20,' ')}</span> ${l.read}</div>`).join('')
+      +(act.length===7?'<div style="margin-top:9px;color:#1e7a5a;font-family:inherit;font-size:13.5px"><b>✓ All seven layers.</b> Three seconds of audio, seven aligned answers — every one added by a person.</div>':'');
+}
+drawLayers();
+
+/* =================== 1.4 TWO ANNOTATORS =================== */
+const TA=[["So ",0],["yeah",1],[", ",0],["no",0],[", ",0],["I mean",0],[" — ",0],["twenty five",2],[" people showed ",0],["um",3],[" up.",0]];
+const TB=[["So ",0],["yea",1],[", ",0],["no",0],[", ",0],["I mean",0],[" — ",0],["25",2],[" people showed ",0],["umm",3],[" up.",0]];
+let found=new Set();
+function build(el,arr){
+  el.innerHTML='';
+  arr.forEach(t=>{
+    const s=document.createElement('span');
+    s.className='tok'+(t[1]?' diff':'');s.textContent=t[0];
+    if(t[1]){s.dataset.d=t[1];s.onclick=()=>hit(t[1])}
+    el.appendChild(s);
+  });
+}
+build(trA,TA);build(trB,TB);
+function hit(d){
+  if(found.has(d))return;
+  found.add(d);
+  document.querySelectorAll(`.tok[data-d="${d}"]`).forEach(x=>x.classList.add('found'));
+  if(found.size===3){
+    S.d3=true;
+    v3.className='verdict show win';
+    v3.innerHTML='<b>✓ Found all three:</b> filler spelling (yeah/yea), number format (twenty five/25), and filler variant (um/umm). None of these is a <em>hearing</em> error — both annotators heard correctly. They are <b>convention</b> errors, and they teach the model that one sound has two right answers.';
+    prog();
+  }else{
+    v3.className='verdict show mid';
+    v3.innerHTML=`<b>${found.size} of 3 found.</b> Keep looking — none of the remaining differences is a mishearing.`;
+  }
+}
+
+/* =================== 1.5 BIAS SIM =================== */
+function preset(){r1.value=70;r2.value=15;r3.value=8;r4.value=7;sim()}
+function sim(){
+  const v=[+r1.value,+r2.value,+r3.value,+r4.value];
+  const tot=v.reduce((a,b)=>a+b,0);
+  const p=v.map(x=>x/tot*100);
+  [o1,o2,o3,o4].forEach((el,i)=>el.textContent=Math.round(p[i])+'%');
+  // illustrative: accuracy rises with share, with diminishing returns
+  const acc=p.map(s=>Math.round(58+36*(1-Math.exp(-s/18))));
+  const names=['Young / prestige','Regional & L2','Children & older','Noisy conditions'];
+  const cols=['#2e7d8f','#c08a2e','#7a4fa3','#a83a3a'];
+  let g='<text x="0" y="12" font-size="11.5" fill="#7b8f96" font-weight="600">HOW WELL IT WORKS FOR EACH GROUP</text>';
+  acc.forEach((a,i)=>{
+    const y=34+i*54;
+    g+=`<text x="0" y="${y}" font-size="12" fill="#3d5a63">${names[i]}</text>`;
+    g+=`<rect x="0" y="${y+7}" width="420" height="16" rx="8" fill="#e9e4da"/>`;
+    g+=`<rect x="0" y="${y+7}" width="${(a/100*420).toFixed(1)}" height="16" rx="8" fill="${cols[i]}"><animate attributeName="width" dur="0.35s" fill="freeze"/></rect>`;
+    const inside=a>82, bw=a/100*420;
+    const tx=(inside?bw-9:bw+8).toFixed(1);
+    g+=`<text x="${tx}" y="${y+20}" font-size="11.5" font-weight="700" fill="${inside?'#ffffff':'#14262c'}" text-anchor="${inside?'end':'start'}">${a}</text>`;
+  });
+  bsvg.innerHTML=g;
+  const gap=Math.max(...acc)-Math.min(...acc);
+  const el=gapnote;
+  if(gap>=25){el.style.background='#fbf0ef';el.style.color='#7d2b2b';
+    el.innerHTML=`<b>${gap}-point gap.</b> The system works well in the demo and fails for everyone who isn't in the majority group.`}
+  else if(gap>=12){el.style.background='#fdf6e8';el.style.color='#7a5a15';
+    el.innerHTML=`<b>${gap}-point gap.</b> Better — but the minority groups are still noticeably worse served.`}
+  else{el.style.background='#eef7f2';el.style.color='#155c43';
+    el.innerHTML=`<b>${gap}-point gap.</b> Balanced. Nobody is being quietly left behind. Note that overall accuracy is <em>lower</em> than the skewed version — which is why teams resist doing this.`;
+    if(!S.sim){S.sim=true;prog()}}
+}
+sim();
+
+/* =================== QUIZ =================== */
+const MCQ=[
+ {q:"A project supplies 8 kHz phone recordings and asks for 44.1 kHz output for a music-tagging model. Correct response?",
+  o:["Upsample to 44.1 kHz and proceed","Flag the mismatch — upsampling can't recover detail that was never captured","Annotate anyway, note low confidence","Apply noise reduction until it sounds richer"],a:1,
+  y:"Sample rate is a ceiling on captured information. Upsampling changes the file header, not the sound.",
+  n:"Upsampling adds no real detail, and noise reduction removes information rather than adding it. This is a project design problem to escalate."},
+ {q:"Which of these can annotation NOT fix?",
+  o:["An inconsistent label taxonomy","A missing speaker ID","Clipping and compression artefacts in the source","A drifted timestamp"],a:2,
+  y:"Exactly — the signal itself is damaged. The other three live in the label layer, where review can correct them.",
+  n:"Look at where the damage sits. Taxonomy, speaker IDs and timestamps are all label-layer problems. Clipping is in the waveform, permanently."},
+ {q:"Why are evaluation sets labelled to a stricter standard than training sets?",
+  o:["They're smaller, so it's cheap","Errors there produce wrong conclusions about model quality","Regulators require it","Models memorise evaluation data"],a:1,
+  y:"The evaluation set is the measuring instrument. An error there misreports the model's real accuracy.",
+  n:"Training data tolerates some noise because volume averages it out. An evaluation set is your ruler — a bent ruler is worse than a slightly rough plank."},
+ {q:"The main quality risk of model pre-annotation is:",
+  o:["Slower throughput","Anchoring bias — reviewers accept a plausible-looking draft","Loss of audio fidelity","Incompatible file formats"],a:1,
+  y:"A fluent, wrong draft is much harder to challenge than a blank field.",
+  n:"Pre-annotation speeds work up and doesn't touch the audio. The risk is psychological: a plausible draft on screen is rarely questioned."}
+];
+const SCEN=[
+ {q:"You're transcribing a call-centre recording. At 01:12 two people talk over each other for four seconds. The guideline says nothing about overlapping speech. What do you do — and what do you not do?",
+  m:"<b>Do:</b> transcribe what's confidently intelligible, mark the overlap with the nearest available tag, keep the timestamps honest about where it starts and stops, and raise the gap with the project lead.<br><br><b>Don't:</b> invent a private convention, guess at words you can't hear, or drop the segment.<br><br><b>The point:</b> you've found a guideline gap. Its value is that it gets fixed once for everybody, rather than being invented forty different ways."},
+ {q:"A voice-assistant dataset is 90% clean indoor recordings from speakers aged 20–35. The client is happy because agreement scores are high. What's the problem, and what would you recommend?",
+  m:"<b>The trap:</b> high agreement measures annotator <em>consistency</em>, not dataset <em>representativeness</em>. Clean homogeneous audio is easy to agree on — the metric looks good precisely because the data is narrow.<br><br><b>The consequence:</b> the deployed system will degrade for children, older speakers, regional accents and noisy real-world use.<br><br><b>Recommend:</b> report demographic and condition coverage alongside agreement, and commission targeted collection for the missing groups before scaling annotation volume."}
+];
+MCQ.forEach((m,i)=>{
+  const d=document.createElement('div');d.className='q';
+  d.innerHTML=`<div class="qh"><div class="qn">Q${i+1}</div><div class="qt">${m.q}</div></div>`+
+    m.o.map((o,j)=>`<button class="opt" data-q="${i}" data-o="${j}"><span class="let">${'ABCD'[j]}</span><span>${o}</span></button>`).join('')+
+    `<div class="fb" id="fb${i}"></div>`;
+  qbox.appendChild(d);
+});
+qbox.addEventListener('click',e=>{
+  const b=e.target.closest('.opt');if(!b||b.classList.contains('locked'))return;
+  const i=+b.dataset.q,j=+b.dataset.o;
+  if(S.mcq[i]!==null)return;
+  S.mcq[i]=j===MCQ[i].a?1:0; S.pick[i]=j;
+  document.querySelectorAll(`.opt[data-q="${i}"]`).forEach(x=>{
+    x.classList.add('locked');
+    const oj=+x.dataset.o;
+    if(oj===MCQ[i].a)x.classList.add('correct');
+    else if(oj===j)x.classList.add('wrong');
+  });
+  const f=document.getElementById('fb'+i);
+  f.className='fb show '+(S.mcq[i]?'y':'n');
+  f.innerHTML=(S.mcq[i]?'<b>✓ Correct. </b>':`<b>Not quite — the answer is ${'ABCD'[MCQ[i].a]}. </b>`)+(S.mcq[i]?MCQ[i].y:MCQ[i].n);
+  prog();
+});
+SCEN.forEach((s,i)=>{
+  const d=document.createElement('div');d.className='q scen';
+  d.innerHTML=`<div class="qh"><div class="qn">S${i+1}</div><div class="qt">${s.q}</div></div>
+    <textarea placeholder="Your answer — a few sentences or bullets…"></textarea>
+    <button class="btn sm" style="margin-top:11px" onclick="reveal(${i},this)">Compare with the model answer</button>
+    <div class="model" id="mo${i}"><h5>Model answer</h5>${s.m}
+      <div class="selfscore"><span>Score yourself:</span>
+        <button class="ss" onclick="ss(${i},3,this)">3 — issue + action</button>
+        <button class="ss" onclick="ss(${i},2,this)">2 — issue only</button>
+        <button class="ss" onclick="ss(${i},1,this)">1 — partial</button>
+        <button class="ss" onclick="ss(${i},0,this)">0 — missed it</button>
+      </div></div>`;
+  qbox.appendChild(d);
+});
+function reveal(i,btn){document.getElementById('mo'+i).classList.add('show');btn.style.display='none'}
+function ss(i,v,el){
+  S.scen[i]=v;
+  el.parentNode.querySelectorAll('.ss').forEach(x=>x.classList.remove('on'));
+  el.classList.add('on');prog();
+}
+
+/* =================== SCORE =================== */
+function showScore(){
+  const pts=S.mcq.reduce((a,b)=>a+b,0)+S.scen.reduce((a,b)=>a+b,0);
+  scorewrap.style.display='block';
+  sc.textContent=pts;
+  ring.innerHTML=Array.from({length:10},(_,i)=>`<span class="dot${i<pts?' f':''}"></span>`).join('');
+  msg.innerHTML = pts>=8
+    ? "Strong pass. You understand that the guideline — not your judgement — is the product. Module 2 is where that gets tested on real transcripts."
+    : pts>=7
+    ? "Pass. Worth re-reading 1.4 on why two careful people disagreeing is a guideline problem, not a people problem."
+    : "Below the 7-point pass mark. Re-run the two drills in 1.1 and 1.2 — they carry most of the module.";
+  setTimeout(()=>scorewrap.scrollIntoView({behavior:'smooth',block:'center'}),260);
+}
+
+/* =================== RESULTS EXPORT =================== */
+function saveResults(){
+  const name=($('who').value||'').trim();
+  const pts=S.mcq.reduce((a,b)=>a+b,0)+S.scen.reduce((a,b)=>a+b,0);
+  const now=new Date();
+  const mins=Math.max(1,Math.round((now-S.started)/60000));
+  const L=[];
+  const line=c=>L.push(c.repeat(58));
+  L.push('AUDIO AI TRAINING — MODULE 1');
+  L.push('How Machines Learn From Sound');
+  line('=');
+  L.push('Name:       '+(name||'(not given)'));
+  L.push('Completed:  '+now.toLocaleString());
+  L.push('Time taken: about '+mins+' minute'+(mins===1?'':'s'));
+  L.push('SCORE:      '+pts+' / 10   '+(pts>=7?'PASS':'BELOW PASS MARK (7)'));
+  L.push('');
+  line('-');
+  L.push('ACTIVITIES');
+  line('-');
+  const tick=b=>b?'[x]':'[ ]';
+  L.push(tick(S.kw>=15)+' Keyword cards      '+S.kw+' of 15 flipped');
+  L.push(tick(S.d1)+' Drill 1            What annotation can and cannot fix');
+  L.push(tick(S.d2)+' Drill 2            Matching tasks to pipeline stages');
+  L.push(tick(S.d3)+' Drill 3            Spotting annotator disagreements');
+  L.push(tick(S.layers)+' Layer stack        All 7 annotation layers viewed');
+  L.push(tick(S.sim)+' Bias simulator     Reached a balanced dataset');
+  L.push('');
+  line('-');
+  L.push('MULTIPLE CHOICE   ('+S.mcq.reduce((a,b)=>a+b,0)+' / 4)');
+  line('-');
+  MCQ.forEach((m,i)=>{
+    const pk=S.pick[i], ok=S.mcq[i]===1;
+    L.push('Q'+(i+1)+'. '+m.q);
+    L.push('     Your answer:    '+(pk===null?'(unanswered)':'ABCD'[pk]+') '+m.o[pk]));
+    if(!ok)L.push('     Correct answer: '+'ABCD'[m.a]+') '+m.o[m.a]);
+    L.push('     '+(ok?'CORRECT':'INCORRECT'));
+    L.push('');
+  });
+  line('-');
+  L.push('SCENARIOS   ('+S.scen.reduce((a,b)=>a+b,0)+' / 6, self-scored)');
+  line('-');
+  const RUB={3:'3 — identified the issue AND the correct action',
+             2:'2 — identified the issue only',
+             1:'1 — partial',0:'0 — missed it'};
+  SCEN.forEach((s,i)=>{
+    const ta=document.querySelectorAll('.scen textarea')[i];
+    L.push('S'+(i+1)+'. '+s.q);
+    L.push('');
+    L.push('     Your answer:');
+    const txt=(ta&&ta.value.trim())||'(left blank)';
+    txt.split('\n').forEach(r=>L.push('     '+r));
+    L.push('');
+    L.push('     Self-score: '+(S.scen[i]===null?'(not scored)':RUB[S.scen[i]]));
+    L.push('');
+  });
+  line('=');
+  L.push('REVIEWER FEEDBACK — please add your comments below and');
+  L.push('send this file back.');
+  line('=');
+  L.push('');
+  L.push('Pacing (too slow / about right / too fast):');
+  L.push('');
+  L.push('Quiz difficulty (too easy / about right / too hard):');
+  L.push('');
+  L.push('Anything now UNCLEAR because the text was cut:');
+  L.push('');
+  L.push('Would a new trainer finish this? Why / why not:');
+  L.push('');
+  L.push('Anything else:');
+  L.push('');
+
+  const stamp=now.toISOString().slice(0,10);
+  const safe=(name||'results').replace(/[^a-z0-9]+/gi,'_').replace(/^_|_$/g,'')||'results';
+  const blob=new Blob([L.join('\n')],{type:'text/plain;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='Module1_'+safe+'_'+stamp+'.txt';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+  $('saved').textContent='✓ Downloaded — add your comments at the bottom and send it back.';
+}
+
+prog();
+</script>
+</body>
+</html>
